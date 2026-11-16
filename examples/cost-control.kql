@@ -1,0 +1,23 @@
+// Cost-control queries against the workspace Usage table (system-generated
+// ingestion telemetry — not part of the DCR streams, always present).
+//
+// 1. What is each data type costing us? Quantity is in meter units; convert
+//    against the Log Analytics per-GB price on the Azure Monitor pricing
+//    page for your currency/region before quoting numbers.
+Usage
+| where TimeGenerated > ago(30d)
+| summarize Quantity = round(sum(Quantity), 2) by DataType
+| order by Quantity desc
+
+// 2. Ingestion trend — spot the runaway before the daily quota stops it.
+Usage
+| where TimeGenerated > ago(14d)
+| summarize Daily = round(sum(Quantity), 2) by bin(TimeGenerated, 1d)
+| render timechart
+
+// 3. Who is noisy? Syslog volume by host and facility.
+Syslog
+| where TimeGenerated > ago(7d)
+| summarize Records = count() by Computer, Facility
+| order by Records desc
+| take 20

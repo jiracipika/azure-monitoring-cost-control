@@ -1,4 +1,7 @@
-// Azure Monitor reference; adapt to data source schemas.
+// Azure Monitor reference query for App Insights request telemetry
+// (AppRequests table). This stack does NOT wire Application Insights yet —
+// use this only if/when an Application Insights resource is connected;
+// for the current Perf/Syslog ingestion see error-triage.kql.
 AppRequests
 | where TimeGenerated > ago(1h)
 | where ResultCode startswith "5"

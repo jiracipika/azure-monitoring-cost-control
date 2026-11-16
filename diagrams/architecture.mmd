@@ -1,5 +1,45 @@
 flowchart LR
-  In[Users or engineers] --> Entry[Monitoring and Cost Control]
-  Entry --> Guard[Security and governance]
-  Guard --> Workload[Managed cloud services]
-  Workload --> Logs[Evidence, observability and tests]
+  subgraph gate["deploy gate: deploy_enabled = false (default)"]
+    subgraph collect["Data collection"]
+      agents["Azure Monitor Agent<br/>(future VMs/AKS/App Service/SQL)"]
+      dcr["Data collection rule<br/>Perf counters 60s +<br/>error-level syslog"]
+      agents --> dcr
+    end
+
+    subgraph core["Central observability"]
+      law["Log Analytics workspace<br/>PerGB2018 · retention 30-730d<br/>daily quota cap · no local keys · no public query"]
+      dsa["Diagnostic setting aggregation<br/>workspace Audit + Usage -> workspace"]
+      dsa --> law
+    end
+
+    dcr --> law
+
+    subgraph alerts["Alerting"]
+      ag["Action group<br/>email only, common schema"]
+      sqcpu["Query alert: sustained CPU<br/>Perf, sev 2, 5m/15m window"]
+      sqlog["Query alert: syslog error burst<br/>Syslog, sev 1, 5m/15m window"]
+      sh["Service Health activity log alert<br/>subscription scope"]
+      sqcpu --> ag
+      sqlog --> ag
+      sh --> ag
+    end
+
+    law --> sqcpu
+    law --> sqlog
+    sub["Subscription"] --> sh
+
+    subgraph cost["Cost control"]
+      budget["Resource-group budget<br/>Actual 50% / 80% + Forecasted 100%<br/>emails + action group"]
+      quota["Daily ingestion quota<br/>(workspace-level brake)"]
+    end
+
+    rg["Monitoring resource group"] --> budget
+    budget --> ag
+    law --> quota
+
+    subgraph govern["Governance reporting"]
+      wb["Workbook<br/>error triage · ingestion Usage ·<br/>untagged resources (Resource Graph)"]
+    end
+    law --> wb
+    tags["Required tags:<br/>environment, costCenter"] --> wb
+  end

@@ -1,0 +1,28 @@
+// Error investigation starter pack — matches the tables this stack's data
+// collection rule ingests (Perf from performance counters, Syslog from
+// error-level collection). Run against the central workspace.
+//
+// 1. Which hosts are saturated right now? (what sq-high-cpu-sustained sees)
+Perf
+| where ObjectName == "Processor" and CounterName == "% Processor Time" and InstanceName == "_Total"
+| summarize CPU = round(avg(CounterValue), 1) by Computer, bin(TimeGenerated, 5m)
+| where CPU > 85
+| order by CPU desc
+
+// 2. Which hosts are spraying errors? (what sq-syslog-error-burst sees)
+Syslog
+| where SeverityLevel <= 3
+| summarize Errors = count() by Computer, ProcessName, bin(TimeGenerated, 15m)
+| order by Errors desc
+
+// 3. Correlate: saturation on the same host as the error burst?
+Syslog
+| where SeverityLevel <= 3
+| summarize Errors = count() by Computer, bin(TimeGenerated, 5m)
+| join kind = inner (
+  Perf
+  | where CounterName == "% Processor Time" and InstanceName == "_Total"
+  | summarize CPU = round(avg(CounterValue), 1) by Computer, bin(TimeGenerated, 5m)
+) on Computer, TimeGenerated
+| project Computer, TimeGenerated, Errors, CPU
+| order by TimeGenerated desc

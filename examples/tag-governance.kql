@@ -1,0 +1,24 @@
+// Tag governance reporting — run in Azure Resource Graph Explorer
+// (NOT Log Analytics: this is the arg query language over Azure resources).
+// The workbook's untagged-resources tile embeds the same query generated
+// from the required_tags variable (environment, costCenter).
+//
+// 1. Resources missing any required tag, grouped by type.
+Resources
+| where isempty(tags['environment']) or isempty(tags['costCenter'])
+| summarize count() by type
+| order by count_ desc
+
+// 2. Worst offenders by resource group.
+Resources
+| where isempty(tags['environment']) or isempty(tags['costCenter'])
+| summarize Untagged = count() by resourceGroup
+| order by Untagged desc
+| take 20
+
+// 3. Estimated ingestion-cost exposure: untagged VMs cannot be charged
+//    back — list them before they spread.
+Resources
+| where type == "microsoft.compute/virtualmachines"
+| where isempty(tags['costCenter'])
+| project name, resourceGroup, location

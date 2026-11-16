@@ -1,6 +1,6 @@
 # 10 — Monitoring & Cost Control
 
-**Azure Cloud Engineering Portfolio** · [GitHub: jiracipika](https://github.com/jiracipika) · **PRIVATE repository** · **Offline scaffold / Azure NOT DEPLOYED**
+**Azure Cloud Engineering Portfolio** · [GitHub: jiracipika](https://github.com/jiracipika) · **PRIVATE repository** · **Offline implementation / Azure NOT DEPLOYED**
 
 ## Goal
 Detect failures and control Azure spend with measured telemetry.
@@ -25,19 +25,37 @@ terraform -chdir=infra/terraform init -backend=false -input=false
 terraform -chdir=infra/terraform validate
 ```
 
+## Implemented offline (2026-11-16, gated behind deploy_enabled=false)
+
+Seven modules under `infra/terraform/modules/` (see [architecture](docs/ARCHITECTURE.md) for the full map):
+
+- `observability` — central Log Analytics workspace with the cost brakes built in (PerGB2018, 30-day retention default, daily ingestion quota, no workspace-local keys, public query endpoint closed)
+- `data_collection` — data collection rule: CPU/memory counters (>=60s sampling) + error-level syslog; Log Analytics destination only
+- `diagnostics` — diagnostic settings aggregation into the workspace (never storage; test-enforced)
+- `action_groups` — single email action group with common alert schema
+- `alert_rules` — KQL alerts (sustained CPU sev 2, syslog error burst sev 1, auto-mitigating) + subscription-scoped Service Health alert
+- `budget` — escalating Actual 50%/80% + Forecasted 100% notifications to emails and the action group
+- `workbook` — error triage, ingestion-by-type and untagged-resources (tag governance) reporting
+
+Offline determinism: `tests/monitor_simulator.py` parses the real HCL and
+replays spend trajectories against the budget ladder and metric series
+against the alert thresholds (fire/resolve with hysteresis) —
+74 tests total, see [validation](docs/VALIDATION.md) for real outputs.
+
 ## Source contents
 
 - `AGENTS.md`: enforceable GLM implementation contract
 - `docs/GLM_TASKS.md`: project-specific milestones
-- `docs/ARCHITECTURE.md`: intended topology and assumptions
+- `docs/ARCHITECTURE.md`: implemented topology and trust boundaries
 - `docs/SECURITY.md` / `docs/COSTS.md`: guardrails and financial control
 - `docs/VALIDATION.md`: log real evidence only
 - `docs/TEARDOWN.md`: future approved cleanup plan
-- `diagrams/architecture.mmd`: initial editable Mermaid model
-- `infra/terraform/`: safe offline provider root, no billable resources declared
+- `diagrams/architecture.mmd`: Mermaid model matching the modules
+- `infra/terraform/`: seven gated modules + offline provider root
+- `examples/`: KQL investigation pack (error triage, cost control, tag governance)
 - `.github/workflows/validate.yml`: offline validation, no deploy step
-- `tests/`: initial safety regression tests
+- `tests/`: scaffold safety, static HCL invariants, simulator scenarios, security scanner
 
 ## Status and safety
 
-This is an initial engineering scaffold, **not** a deployed production system. Terraform currently defines no Azure services. The architecture modules, end-to-end tests and production readiness must be implemented and verified in subsequent GLM work. **Repository visibility must remain PRIVATE.** No credentials, secrets, real customer data, Terraform state or internal account identifiers may be committed.
+Offline implementation complete for milestone M1; **nothing is deployed** and the deploy gate stays closed. **Repository visibility must remain PRIVATE.** No credentials, secrets, real customer data, Terraform state or internal account identifiers may be committed.
