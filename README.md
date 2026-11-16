@@ -1,6 +1,6 @@
 # 10 — Monitoring & Cost Control
 
-**Azure Cloud Engineering Portfolio** · [GitHub: jiracipika](https://github.com/jiracipika) · **PRIVATE repository** · **Offline implementation / Azure NOT DEPLOYED**
+**Azure Cloud Engineering Portfolio** · [GitHub: jiracipika](https://github.com/jiracipika) · **PUBLIC repository** · **Offline implementation / Azure NOT DEPLOYED**
 
 ## Goal
 Detect failures and control Azure spend with measured telemetry.
